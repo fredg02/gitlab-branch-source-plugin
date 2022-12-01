@@ -11,8 +11,6 @@ import hudson.Extension;
 import hudson.Util;
 import hudson.model.AbstractDescribableImpl;
 import hudson.model.Descriptor;
-import hudson.model.Item;
-import hudson.model.ItemGroup;
 import hudson.security.ACL;
 import hudson.security.AccessControlled;
 import hudson.util.FormValidation;
@@ -127,6 +125,12 @@ public class GitLabServer extends AbstractDescribableImpl<GitLabServer> {
     private Secret secretToken;
 
     /**
+     * {@code true} if and only if Jenkins should trigger a build immediately on a
+     * GitLab Web Hook trigger.
+     */
+    private boolean immediateHookTrigger;
+
+    /**
      * Delay to be used for GitLab Web Hook build triggers.
      */
     private Integer hookTriggerDelay;
@@ -237,30 +241,15 @@ public class GitLabServer extends AbstractDescribableImpl<GitLabServer> {
         Jenkins jenkins = Jenkins.get();
         if (context == null) {
             jenkins.checkPermission(CredentialsProvider.USE_OWN);
-            return StringUtils.isBlank(credentialsId) ? null : CredentialsMatchers.firstOrNull( lookupCredentials(
+        } else {
+            context.checkPermission(CredentialsProvider.USE_OWN);
+        }
+        return StringUtils.isBlank(credentialsId) ? null : CredentialsMatchers.firstOrNull( lookupCredentials(
                                                                                                     PersonalAccessToken.class,
                                                                                                     jenkins,
                                                                                                     ACL.SYSTEM,
                                                                                                     fromUri(defaultIfBlank(serverUrl, GITLAB_SERVER_URL)).build()
                                                                                                 ), withId(credentialsId));
-        } else {
-            context.checkPermission(CredentialsProvider.USE_OWN);
-            if (context instanceof ItemGroup) {
-                return StringUtils.isBlank(credentialsId) ? null : CredentialsMatchers.firstOrNull( lookupCredentials(
-                    PersonalAccessToken.class,
-                    (ItemGroup) context,
-                    ACL.SYSTEM,
-                    fromUri(defaultIfBlank(serverUrl, GITLAB_SERVER_URL)).build()
-                ), withId(credentialsId));
-            } else {
-                return StringUtils.isBlank(credentialsId) ? null : CredentialsMatchers.firstOrNull( lookupCredentials(
-                    PersonalAccessToken.class,
-                    (Item) context,
-                    ACL.SYSTEM,
-                    fromUri(defaultIfBlank(serverUrl, GITLAB_SERVER_URL)).build()
-                ), withId(credentialsId));
-            }
-        }
     }
 
     /**
@@ -310,6 +299,28 @@ public class GitLabServer extends AbstractDescribableImpl<GitLabServer> {
             return null;
         }
         return this.secretToken.getPlainText();
+    }
+
+    /**
+     * Returns {@code true} if Jenkins should trigger a build immediately on a
+     * GitLab Web Hook trigger.
+     *
+     * @return {@code true} if Jenkins should trigger a build immediately on a
+     * GitLab Web Hook trigger.
+     */
+    public boolean isImmediateHookTrigger() {
+        return immediateHookTrigger;
+    }
+
+    /**
+     * Data Bound Setter for immediate build on a GitLab Web Hook trigger.
+     *
+     * @param immediateHookTrigger {@code true} if and only if Jenkins should trigger a build immediately on a
+     * GitLab Web Hook trigger.
+     */
+    @DataBoundSetter
+    public void setImmediateHookTrigger(boolean immediateHookTrigger) {
+        this.immediateHookTrigger = immediateHookTrigger;
     }
 
     /**
